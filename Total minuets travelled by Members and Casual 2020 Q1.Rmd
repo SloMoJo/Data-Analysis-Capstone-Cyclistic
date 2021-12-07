@@ -1,0 +1,229 @@
+---
+title: "Total Minutes Travelled By Members & Casual Riders in 2020 Q1"
+author: "Jad"
+date: "12/6/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Here We Go - Capstone Case Study: Cyclistic Bicycle Ride Sharing
+
+```{r message = FALSE, warning = FALSE}
+read.csv("Riders_2020_Q1_total_duration.csv")
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(knitr)
+```
+
+
+### Questions:
+
+1) How do annual members and casual riders use Cyclistic bikes differently?
+
+### Consider key differences:
+
+```{r message = FALSE, warning = FALSE}
+trips_2020_Q1 <- read_csv("Divvy_Trips_2020_Q1.csv")
+```
+
+Rows: 426887 Columns: 13
+
+```{r message = FALSE, warning = FALSE}
+colnames(trips_2020_Q1)
+```
+
+```r
+ [1] "ride_id"            "rideable_type"      "started_at"         "ended_at"
+ [5] "start_station_name" "start_station_id"   "end_station_name"   "end_station_id"
+ [9] "start_lat"          "start_lng"          "end_lat"            "end_lng"
+[13] "member_casual"
+```
+
+```r
+count(trips_2020_Q1, member_casual)
+```
+casual         48480
+member        378407
+
+### ride_id is not necessary
+### rideable_type is all docked bikes
+
+```r
+trips_length <- select(trips_2020_Q1, started_at, ended_at, member_casual)
+```
+
+### Find trip duration for each trip:
+
+```r
+trips_length$trip_duration <- difftime( as.POSIXct( trips_length[[2]], format="%Y-%m-%dT%H:%M"), as.POSIXct( trips_length[[1]], format="%Y-%m-%dT%H:%M"), units="min")
+```
+
+### Reorder columns:
+
+```r
+trips_length <- trips_length[c(1, 2, 4, 3)]
+```
+```r
+head(trips_length)
+```
+```r
+           started_at            ended_at trip_duration member_casual
+1 2020-01-21 20:06:59 2020-01-21 20:14:30 7.516667 mins        member
+2 2020-01-30 14:22:39 2020-01-30 14:26:22 3.716667 mins        member
+3 2020-01-09 19:29:26 2020-01-09 19:32:17 2.850000 mins        member
+4 2020-01-06 16:17:07 2020-01-06 16:25:56 8.816667 mins        member
+5 2020-01-30 08:37:16 2020-01-30 08:42:48 5.533333 mins        member
+6 2020-01-10 12:33:05 2020-01-10 12:37:54 4.816667 mins        member
+```
+
+### Rename columns:
+
+```r
+colnames(trips_length) <- c("Started At", "Ended At", "Trip Duration", "Member Type")
+```
+
+### Calculate Max and Min durations
+
+```r
+max(trips_length$`Trip Duration`)
+```
+```r
+Time difference of 156450.4 mins
+```
+```r
+min(trips_length$`Trip Duration`)
+```
+Time difference of -9.2 mins
+
+### How can that be a nagative number?
+Maybe start and end time were recorded incorrectly.
+Also, many trips with 0 duration.
+Most of the longest trip durations were by casual riders.
+
+group by and arrange descending by Trip Duration
+
+```r
+trips_by_duration <- trips_length %>% group_by(`Trip Duration`, `Member Type`) %>% arrange(desc(`Trip Duration`, desc(`Member Type`)))
+```
+```r
+as_tibble(trips_by_duration)
+```
+
+### A tibble:
+```r
+   `Started At`        `Ended At`          `Trip Duration` `Member Type`
+   <dttm>              <dttm>              <drtn>          <chr>
+ 1 2020-01-09 21:00:22 2020-04-27 12:30:46 156450.40 mins  casual
+ 2 2020-02-02 17:18:57 2020-05-12 16:15:42 143936.75 mins  casual
+ 3 2020-02-28 08:47:09 2020-05-19 20:10:34 117323.42 mins  casual
+ 4 2020-03-02 17:57:47 2020-05-06 21:11:18  93793.52 mins  member
+ 5 2020-01-26 10:24:05 2020-03-28 22:15:51  89991.77 mins  casual
+ 6 2020-02-09 10:23:26 2020-04-11 18:46:05  89782.65 mins  casual
+ 7 2020-02-08 19:04:12 2020-04-03 19:21:43  79217.52 mins  member
+ 8 2020-01-15 12:02:18 2020-03-07 09:05:39  74703.35 mins  casual
+ 9 2020-02-11 10:45:29 2020-03-30 17:10:20  69504.85 mins  casual
+10 2020-02-01 04:24:36 2020-03-17 18:46:18  65661.70 mins  casual
+```
+
+### Convert Trip Duration as double
+
+```r
+trips_length$duration_as_int <- as.double(trips_length$`Trip Duration`)
+```
+
+### Having a hardddd time. Moving to Excel to work out some of the kinks in finding the average in trip duration.
+
+```r
+=AVG trip duration of all types of members = 22.1151047 mins
+```
+
+### From Excel, since it's easier to do quick calculations
+```r
+Count Member	378,407
+Count Casual	48,480
+Total variables 426,887
+
+
+If duration is > 15 mins	115,253
+If duration is > 30 mins	32,478
+If duration is < 10 mins  232,354
+
+% of > 15 min rides	27.00%
+% of > 30 min rides	7.61%
+% of <10 min rides  54.43%
+```
+
+#### Comparing 2020_Q1 data and 2019_Q1, I noticed that the data isn't labeled the same. In 2019_Q1, they include different info about gender and label "members" and "customers" differently, as well as including birth year of the customer. Since this data isn't included in all data sets, it isn't very valuable. Also, 2019_Q1 has more data.
+
+### make new column with months
+```r
+trips_length$month <- format(trips_length$`Started At`, format="%m")
+```
+###saved as a csv and will now visualize in Tableau
+
+### Making data.frame from values and visualizing in R
+```r
+riders_2020_Q1 <- c('January Members', 'January Casual', 'February Members', 'February Casual', 'March Members', 'March Casual')
+```
+### getting values already input (numbers)
+```r
+trips_total_mins <- c(january_member_riders, january_casual_riders, february_member_riders, february_casual_riders, march_member_riders, march_casual_riders)
+```
+
+```r
+rider_type <- riders_2020_Q1
+```
+```r
+riders_2020_Q1_total_duration <- data.frame(rider_type, trips_total_mins)
+```
+### Make new column
+```r
+riders_2020_Q1_total_duration$trips_total_mins_in_1000s <- riders_2020_Q1_total_duration$trips_total_mins
+```
+### Make old column in reference to new column. Calculating minutees in hundreds of thousands
+```r
+riders_2020_Q1_total_duration$trips_total_mins <- riders_2020_Q1_total_duration$trips_total_mins*1000
+```
+### R VISUALIZATION
+
+```r
+bar_graph_of_2020_Q1_rider_times <- ggplot(riders_2020_Q1_total_duration, aes(rider_type, trips_total_mins_in_1000s)) + geom_bar(stat="identity", fill="steelblue") + geom_text(aes(label=trips_total_mins_in_1000s), vjust=1.6, color="white", size=3.5)
+```
+
+### Convert "January", "February" etc. Strings into Dates
+```r
+riders_2020_Q1_total_duration$month <- c("2020-01-01", "2020-01-01", "2020-02-01", "2020-02-01", "2020-03-01", "2020-03-01") format(as.Date(riders_2020_Q1_total_duration$month), "%b")
+```
+```r
+[1] "Jan" "Jan" "Feb" "Feb" "Mar" "Mar"
+```
+
+### Include into data frame
+```r
+riders_2020_Q1_total_duration$month <- format(as.Date(riders_2020_Q1_total_duration$month), "%b")
+```
+```r
+riders_2020_Q1_total_duration$month = factor(riders_2020_Q1_total_duration$month, levels = month.abb)
+```
+### Then reintroduce into ggplot
+
+### With Labels
+```r
+bar_graph_of_2020_Q1_rider_times <- ggplot(riders_2020_Q1_total_duration, aes(rider_type, trips_total_mins_in_1000s, fill = rider_type)) + geom_bar(stat="identity") + facet_wrap(~month) + labs(title="2020 Q1 Rides Total Minutes Rode", x = "Rider Type", y = "Trips in mins (1000s)", fill = "Rider Type")
+```
+
+![the final graph](2020 Q1 Rides Total Minutes Rode.png)
+
+### ALL DONE
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

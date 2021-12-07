@@ -1,0 +1,181 @@
+---
+title: "Frequency of Rides To & From Stations"
+author: "Jad"
+date: "12/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+read.csv("Riders_2020_Q1_total_duration.csv")
+library(rmarkdown)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(knitr)
+```
+
+## Now main question:
+
+### Starting locations & ending locations vis a vis frequency (volume)
+
+```r
+Using Divvy_trips_2019_Q4
+```
+
+```r
+trips_2019_Q4 <- read.csv("Divvy_trips_2019_Q4.csv")
+
+head(trips_2019_Q4)
+```
+
+```r
+colnames(trips_2019_Q4)
+
+ [1] "trip_id"           "start_time"        "end_time"          "bikeid"
+ [5] "tripduration"      "from_station_id"   "from_station_name" "to_station_id"
+ [9] "to_station_name"   "usertype"          "gender"            "birthyear"
+```
+
+### Make table more restrictive
+
+```r
+fewer_trips_2019_Q4 <- trips_2019_Q4 %>% select(2, 3, 4, 6, 7, 8, 9)
+```
+
+### Add new column including frequency in to_station_id
+
+```r
+fewer_trips_2019_Q4 <- transform(fewer_trips_2019_Q4, to_station_name_frequency=ave(seq(nrow(fewer_trips_2019_Q4)),to_station_name,FUN=length))
+```
+
+### New data frame with new column
+
+```r
+over_ten_thousand_trips <- fewer_trips_2019_Q4 %>% filter(to_station_name_frequency>10000)
+
+over_ten_thousand_trips <- over_ten_thousand_trips %>% select(3, 5, 6, 7, 8)
+
+Order by decreasing = TRUE from to_station_name_frequency which is set at over 10,000
+```
+
+```r
+over_ten_thousand_trips <- over_ten_thousand_trips[order(over_ten_thousand_trips$to_station_name_frequency, decreasing = TRUE),]
+```
+
+### This data reveals that only three locations contain over 10,000 counts
+
+```r
+unique(over_ten_thousand_trips$to_station_name)
+
+[1] "Canal St & Adams St"          "Clinton St & Washington Blvd"
+[3] "Clinton St & Madison St"
+
+unique(over_ten_thousand_trips$to_station_id)
+
+[1] 192  91  77
+```
+
+### HOWEVER 
+
+from_station_id is quite a different story...
+
+... it contains 341 unique variables
+
+unique(over_ten_thousand_trips$from_station_name)
+
+#### So, we can say with confidence that the most frequented stops are "Canal St & Adams St", "Clinton St & Washington Blvd" and "Clinton St & Madison St".
+
+
+
+### Now let's look at starting locations
+
+```r
+fewer_trips_2019_Q4 <- transform(fewer_trips_2019_Q4, from_station_name_frequency=ave(seq(nrow(fewer_trips_2019_Q4)),from_station_name,FUN=length))
+```
+
+```r
+over_ten_thousand_trips_TO <- over_ten_thousand_trips
+
+over_ten_thousand_trips_FROM <- over_ten_thousand_trips_FROM %>% select(3, 4, 5, 6, 7, 8, 9)
+
+over_ten_thousand_trips_FROM <- over_ten_thousand_trips_FROM %>% select(1, 2, 3, 7)
+```
+
+### Which means:
+```r
+colnames(over_ten_thousand_trips_FROM)
+
+[1] "bikeid"                      "from_station_id"
+[3] "from_station_name"           "from_station_name_frequency"
+```
+
+#### I've fixed this, because I need to include the column "to_station_name" & "to_station_id" for later comparison
+
+### Once again:
+
+Order by decreasing = TRUE from from_station_name_frequency which is set at over 10,000
+
+```r
+over_ten_thousand_trips_FROM <- over_ten_thousand_trips_FROM[order(over_ten_thousand_trips_FROM$from_station_name_frequency, decreasing = TRUE),]
+
+unique(over_ten_thousand_trips_FROM$from_station_name)
+
+"Canal St & Adams St", "Clinton St & Washington Blvd" & "Clinton St & Madison St"
+```
+
+### So, only two stations contain over 10,000 departing trip counts.
+
+```r
+unique(over_ten_thousand_trips_FROM$from_station_id)
+
+[1] 192  77
+```
+
+### HOWEVER
+
+to_station_id is quite a different story. It contains ...
+
+```r
+count(over_ten_thousand_trips_FROM_with_TO, "to_station_id")
+```
+
+... unique 355 unique variables. This includes multiple counts of several of the "to" locations.
+
+### So
+
+#### similarly to before, we can assume that many people depart from "Canal St & Adams St" & "Clinton St & Madison St" and travel to multiple locations.
+
+#### One more area to investigate would be the time that these riders travel & an additional measurement would be to calculate the distance travelled on these trips, since time != distance.
+
+### As for visualizations, here's what I have.
+
+```r
+Table 1
+to_station_name_frequency <- c("Canal St & Adams St", "Clinton St & Washington Blvd", "Clinton St & Madison St")
+to_station_name_count <- c(12812, 11051, 10360)
+```
+
+```r
+Table 2
+from_and_to_variables <- data.frame(from_station_name_frequency, from_station_name_count, to_station_name_frequency, to_station_name_count)
+```
+
+```r
+from_variables <- data.frame(from_station_name_frequency, from_station_name_count)
+
+Plot 1
+ggplot(from_variables, aes(from_station_name_frequency, from_station_name_count, fill = from_station_name_frequency)) + geom_bar(stat = "identity") + labs(title="2019 Q4 Ride Frequency over 10,000 Counts", x = "From Station", y = "Count", fill = "Station Name")
+
+Plot 2
+ggplot(to_variables, aes(to_station_name_frequency, to_station_name_count, fill = to_station_name_frequency)) + geom_bar(stat = "identity") + labs(title="2019 Q4 Ride Frequency over 10,000 Counts", x = "To Station", y = "Count", fill = "Station Name") + theme(text = element_text(size=10))
+```
+
+### AWARE that this does not identify MEMBERS and CASUAL riders. This report is meant to show the frequency of stations.
+
+## END
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
